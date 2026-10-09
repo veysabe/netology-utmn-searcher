@@ -1,12 +1,15 @@
 import os
+from pathlib import Path
 
 from structures import documents
 
 def load_documents(search_paths):
     documents.clear()
     document_id = 1
+    root_path = Path(__file__).resolve().parent.__str__()
 
     for folder_path in search_paths:
+        folder_path = root_path + folder_path
         if not os.path.isdir(folder_path):
             continue
         for file_name in os.listdir(folder_path):
