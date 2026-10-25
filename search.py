@@ -8,19 +8,18 @@ def search(query):
     total_docs = len(structures.documents)
 
     scores: dict[int, float] = {} # ID документа -> релевантность
-    matches: dict[int, dict[str, int]] = {} # ID документа -> {слово -> количество вхождений}
 
     for word in words:
         postings = structures.inverted_index.get(word)
         if not postings:
             continue
-        # тут мы этими +1 от деления на ноль защищаемся,
-        idf = math.log((total_docs + 1) / (len(postings) + 1)) + 1
+        # tf = count / длина документа, idf = log(N / df)
+        idf = math.log(total_docs / len(postings))
         for doc_id, count in postings.items():
-            scores[doc_id] = scores.get(doc_id, 0.0) + count * idf
-            matches.setdefault(doc_id, {})[word] = count
+            tf = count / structures.doc_lengths[doc_id]
+            scores[doc_id] = scores.get(doc_id, 0.0) + tf * idf
 
-    ranked = sorted(scores, key=lambda doc_id: (len(matches[doc_id]), scores[doc_id]), reverse=True)
+    ranked = sorted(scores, key=scores.get, reverse=True)
 
     return [
         {
