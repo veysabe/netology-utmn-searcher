@@ -14,6 +14,4 @@ if __name__ == '__main__':
     print(config.search_paths)
     index.index()
 
-    print(search.search('в'))
-
-    run_server()
+    run_server("127.0.0.1", 8008)
