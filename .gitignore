@@ -2,3 +2,5 @@
 docs
 .idea
 __pycache__/
+index_cache.json
+/data
