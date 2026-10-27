@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: Поиск по PDF-документам
+  description: >
+    HTTP-сервис полнотекстового поиска по PDF-файлам.
+    Сервис собирает индекс из указанных в конфигурации директорий,
+    строит обратный индекс и поддерживает поиск по текстовому запросу.
+    Ответ содержит не более 10 самых релевантных документов.
+    Любой путь, кроме перечисленных ниже, возвращает 404
+    с телом {"error": "not found"}.
+  version: 1.0.0
+  contact:
+    name: Netology UTMN Searcher
+
+servers:
+  - url: http://127.0.0.1:8008
+    description: Локальный сервер
+
+paths:
+  /search:
+    get:
+      summary: Поиск документов по текстовому запросу
+      description: >
+        Возвращает список PDF-документов, отсортированный по релевантности.
+        Используется обратный индекс (inverted index) для оценки
+        соответствия документа ключевым словам.
+      tags:
+        - search
+      parameters:
+        - name: q
+          in: query
+          description: Текстовый запрос для поиска (ключевые слова)
+          required: true
+          schema:
+            type: string
+          example: "математика анализ"
+      responses:
+        "200":
+          description: Успешный поиск
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+              examples:
+                default:
+                  value:
+                    query: "математика анализ"
+                    results:
+                      - id: 1
+                        path: /path/to/docs/example.pdf
+        "400":
+          description: Запрос не содержит поискового запроса
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: "empty query"
+
+components:
+  schemas:
+    SearchResponse:
+      type: object
+      description: Ответ сервера с результатами поиска
+      required:
+        - query
+        - results
+      properties:
+        query:
+          type: string
+          description: Введённый поисковый запрос
+          example: "математика анализ"
+        results:
+          type: array
+          description: Список найденных документов, отсортированных по убыванию релевантности
+          items:
+            $ref: "#/components/schemas/DocumentResult"
+    DocumentResult:
+      type: object
+      description: Результат поиска — один документ
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор документа (порядковый номер)
+          example: 1
+        path:
+          type: string
+          description: Абсолютный путь к PDF-файлу на диске
+          example: "/path/to/docs/example.pdf"
+    ErrorResponse:
+      type: object
+      description: Ответ с ошибкой
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Текст ошибки
+          example: "not found"
