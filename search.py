@@ -1,9 +1,10 @@
+import heapq
 import math
 
 import structures
 from index import WORD_RE
 
-def search(query):
+def search(query, limit=10):
     words = set(WORD_RE.findall(query.lower()))
     total_docs = len(structures.documents)
 
@@ -19,7 +20,7 @@ def search(query):
             tf = count / structures.doc_lengths[doc_id]
             scores[doc_id] = scores.get(doc_id, 0.0) + tf * idf
 
-    ranked = sorted(scores, key=scores.get, reverse=True)
+    ranked = heapq.nlargest(limit, scores, key=scores.get)
 
     return [
         {
