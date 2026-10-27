@@ -1,6 +1,7 @@
 .venv
 docs
 .idea
+.vscode/
 __pycache__/
 index_cache.json
 /data
