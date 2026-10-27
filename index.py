@@ -26,6 +26,7 @@ def index():
                 print(f"Не удалось проиндексировать {path}: {e}")
                 continue
             cache[path] = {"mtime": mtime, "words": counts}
+        structures.doc_lengths[doc_id] = sum(counts.values())
         for word, count in counts.items():
             structures.inverted_index.setdefault(word, {})[doc_id] = count
     index_storage.save_cache(cache)
