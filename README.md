@@ -114,9 +114,9 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 - [x] `search` — TF-IDF и ранжирование
 - [x] `index_storage` — кэш индекса
 - [x] Тесты на `document_reader` (8 тестов)
-- [ ] Перевод тестов на **pytest**
-- [ ] Покрытие классов логики **100 % по бранчам** (`pytest-cov`)
-- [ ] Вынесение логики из функций/глобалов в классы
+- [x] Перевод тестов на **pytest**
+- [x] Покрытие тестами **≥ 80 %** с порогом в `pyproject.toml`
+- [x] Вынесение логики из функций/глобалов в классы
 
 ### Этап 3–4. Git и GitHub
 
@@ -142,7 +142,7 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 - [x] `server.py` на `http.server`
 - [x] `GET /search?q=`
-- [ ] Ветка `server`: тесты на сервер через `requests` (пишутся до сервера)
+- [x] Тесты на сервер через реальный HTTP-запрос на свободном порту
 - [ ] Проверка в Postman
 
 ### Этап 9. MongoDB (повышенная сложность)
@@ -413,8 +413,12 @@ curl "http://127.0.0.1:8008/search?q=python"
 ### Тесты
 
 ```bash
-python -m unittest discover -s tests -v
+pip install -r requirements-dev.txt
+pytest
 ```
+
+`pytest` сам считает покрытие и падает, если оно ниже **80 %**
+(настройки — в `pyproject.toml`).
 
 ---
 
