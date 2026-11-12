@@ -81,7 +81,7 @@ paths:
                     fallback: false
                     reason: null
                     documents: 4
-                    unique_words: 62
+                    unique_words: 54
 
 components:
   schemas:
@@ -151,7 +151,7 @@ components:
           example: null
         documents:
           type: integer
-          description: Количество проиндексированных документов
+          description: Количество найденных PDF-документов
           example: 4
         unique_words:
           type: integer

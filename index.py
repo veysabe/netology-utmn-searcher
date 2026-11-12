@@ -46,6 +46,7 @@ class Indexer:
             for word, count in counts.items():
                 inverted_index.setdefault(word, {})[doc_id] = count
 
+        cache = {path: cache[path] for path in self.documents.values() if path in cache}
         self.storage.save_cache(cache)
         self.storage.save_index(self.documents, inverted_index, doc_lengths)
         return inverted_index, doc_lengths

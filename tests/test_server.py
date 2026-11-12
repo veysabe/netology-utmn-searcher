@@ -97,9 +97,12 @@ def test_run_server_stops_on_keyboard_interrupt(monkeypatch):
     import server
 
     class FakeHTTPServer:
+        instances = []
+
         def __init__(self, address, handler):
             self.address = address
             self.closed = False
+            FakeHTTPServer.instances.append(self)
 
         def serve_forever(self):
             raise KeyboardInterrupt
@@ -110,3 +113,5 @@ def test_run_server_stops_on_keyboard_interrupt(monkeypatch):
     monkeypatch.setattr(server, "HTTPServer", FakeHTTPServer)
 
     server.run_server()
+
+    assert FakeHTTPServer.instances[0].closed is True

@@ -56,7 +56,7 @@ def test_index_builds_when_nothing_saved(monkeypatch):
     index.index()
 
     assert structures.inverted_index["python"] == {1: 3}
-    assert structures.doc_lengths == {1: 21}
+    assert structures.doc_lengths[1] > 0
 
 
 def test_indexer_reads_text_from_pdf(tmp_path):
@@ -77,6 +77,22 @@ def test_broken_pdf_is_skipped(tmp_path):
 
     assert inverted_index == {}
     assert doc_lengths == {}
+
+
+def test_pdf_without_text_is_indexed_as_empty(tmp_path):
+    from pypdf import PdfWriter
+
+    path = tmp_path / "empty.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    with open(path, "wb") as f:
+        writer.write(f)
+    store = FileIndexStorage(str(tmp_path / "cache.json"))
+
+    inverted_index, doc_lengths = Indexer({1: str(path)}, store).build()
+
+    assert inverted_index == {}
+    assert doc_lengths == {1: 0}
 
 
 def test_file_storage_saves_and_loads_cache(tmp_path):

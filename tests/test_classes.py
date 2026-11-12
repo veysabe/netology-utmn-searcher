@@ -1,7 +1,5 @@
-
 from document_reader import DocumentReader
 from index import Indexer
-from search import Searcher
 
 
 class MemoryStorage:
@@ -45,36 +43,15 @@ def test_indexer_takes_words_from_cache_without_parsing_pdf(tmp_path):
     assert storage.saved_index == (documents, inverted_index, doc_lengths)
 
 
-def make_searcher():
-    documents = {1: "a.pdf", 2: "b.pdf", 3: "c.pdf"}
-    inverted_index = {
-        "python": {1: 2, 2: 1},
-        "search": {1: 1, 3: 5},
+def test_indexer_drops_cache_entries_for_missing_files(tmp_path):
+    present = tmp_path / "present.pdf"
+    present.touch()
+    cache = {
+        str(present): {"mtime": present.stat().st_mtime, "words": {}},
+        str(tmp_path / "deleted.pdf"): {"mtime": 1.0, "words": {"old": 1}},
     }
-    doc_lengths = {1: 10, 2: 10, 3: 10}
-    return Searcher(documents, inverted_index, doc_lengths)
+    storage = MemoryStorage(cache)
 
+    Indexer({1: str(present)}, storage).build()
 
-def test_searcher_ranks_by_tf_idf():
-    results = make_searcher().search("python")
-
-    assert [result["id"] for result in results] == [1, 2]
-
-
-def test_searcher_ignores_case():
-    searcher = make_searcher()
-
-    assert searcher.search("PYTHON") == searcher.search("python")
-
-
-def test_searcher_returns_at_most_ten_results():
-    documents = {doc_id: f"{doc_id}.pdf" for doc_id in range(1, 13)}
-    inverted_index = {"python": {doc_id: 1 for doc_id in documents}}
-    doc_lengths = {doc_id: 10 for doc_id in documents}
-    searcher = Searcher(documents, inverted_index, doc_lengths)
-
-    assert len(searcher.search("python")) == 10
-
-
-def test_searcher_skips_unknown_word():
-    assert make_searcher().search("banana") == []
+    assert list(storage.cache) == [str(present)]

@@ -45,6 +45,14 @@ def test_unknown_word_returns_nothing():
     assert make_searcher().search("banana") == []
 
 
+def test_single_document_corpus_still_returns_document():
+    searcher = Searcher({1: "a.pdf"}, {"python": {1: 1}}, {1: 1})
+
+    results = searcher.search("python")
+
+    assert results == [{"id": 1, "path": "a.pdf"}]
+
+
 def test_global_search_uses_structures():
     structures.documents.clear()
     structures.documents.update({1: "a.pdf"})

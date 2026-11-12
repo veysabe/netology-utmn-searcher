@@ -52,25 +52,49 @@ class MongoIndexStorage:
             self.db.doc_lengths.insert_many(
                 [{"doc_id": doc_id, "length": length} for doc_id, length in doc_lengths.items()]
             )
+        for doc_id, path in documents.items():
+            self.db.documents.update_one({"path": path}, {"$set": {"doc_id": doc_id}})
 
     def load_index(self, documents):
         """Возвращает индекс из базы, если файлы не изменились."""
-        saved_mtimes = {doc["path"]: doc["mtime"] for doc in self.db.documents.find()}
-        try:
-            current_mtimes = {
-                path: Path(path).stat().st_mtime for path in documents.values()
-            }
-        except OSError:
-            return None
-        if not saved_mtimes or saved_mtimes != current_mtimes:
+        stored = {doc["path"]: doc for doc in self.db.documents.find()}
+        if not stored:
             return None
 
-        inverted_index = {
-            doc["word"]: {int(doc_id): count for doc_id, count in doc["docs"].items()}
-            for doc in self.db.postings.find()
+        current_mtimes = {}
+        for path in documents.values():
+            try:
+                current_mtimes[path] = Path(path).stat().st_mtime
+            except OSError:
+                return None
+        if set(stored) != set(current_mtimes):
+            return None
+        for path, mtime in current_mtimes.items():
+            if stored[path]["mtime"] != mtime or "doc_id" not in stored[path]:
+                return None
+
+        # Идентификаторы могли измениться, если поменялся порядок директорий,
+        # поэтому пересчитываем их по путям.
+        old_to_new = {}
+        for doc_id, path in documents.items():
+            old_to_new[stored[path]["doc_id"]] = doc_id
+
+        inverted_index = {}
+        for doc in self.db.postings.find():
+            inverted_index[doc["word"]] = {
+                old_to_new[int(old_id)]: count for old_id, count in doc["docs"].items()
+            }
+        doc_lengths = {
+            old_to_new[doc["doc_id"]]: doc["length"] for doc in self.db.doc_lengths.find()
         }
-        doc_lengths = {doc["doc_id"]: doc["length"] for doc in self.db.doc_lengths.find()}
         return inverted_index, doc_lengths
+
+
+def _use_file_storage(reason):
+    global current
+    current = FileIndexStorage()
+    STATUS.update(mode="file", fallback=True, reason=reason)
+    return current
 
 
 def create_storage(config):
@@ -83,19 +107,15 @@ def create_storage(config):
         return current
 
     try:
-        storage = MongoIndexStorage(config.mongo_uri, config.mongo_db)
-        storage.check()
+        mongo = MongoIndexStorage(config.mongo_uri, config.mongo_db)
+        mongo.check()
     except pymongo.errors.ServerSelectionTimeoutError:
         print("MongoDB недоступна, использую файловый кэш")
-        current = FileIndexStorage()
-        STATUS.update(mode="file", fallback=True, reason="нет соединения с MongoDB")
-        return current
+        return _use_file_storage("нет соединения с MongoDB")
     except Exception as e:
         print(f"MongoDB недоступна ({e}), использую файловый кэш")
-        current = FileIndexStorage()
-        STATUS.update(mode="file", fallback=True, reason=str(e))
-        return current
+        return _use_file_storage(str(e))
 
-    current = storage
+    current = mongo
     STATUS.update(mode="mongodb", fallback=False, reason=None)
     return current
