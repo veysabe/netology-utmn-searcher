@@ -133,7 +133,7 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 - [x] `openapi.yaml` (OpenAPI 3.0.3) — ветка `feature/swagger-ui`
 - [x] Swagger UI на `GET /docs` — ветка `feature/swagger-ui`
-- [ ] Описание эндпоинтов в README, PR на ревью
+- [x] Описание эндпоинтов в README, PR на ревью — ветка `apispec`
 
 ### Этап 7–8. HTTP-сервер
 
@@ -368,4 +368,23 @@ python -m unittest discover -s tests -v
 
 ---
 
+## 6. Эндпоинты
+
+| Название действия    | Локейшн (URL)     | Тип запроса | Описание запроса и ответа           |
+|----------------------|-------------------|-------------|-------------------------------------|
+| Поиск документов     | `/search`         | `GET`       | Принимает `q`, возвращает документы |
+| Swagger UI           | `/docs`           | `GET`       | Интерактивная документация API      |
+| OpenAPI спецификация | `/openapi.yaml`   | `GET`       | YAML-спецификация OpenAPI 3.0.3     |
+| Страница не найдена  | любой другой путь | `GET`       | Ошибка `404`                        |
+
+Детали:
+
+- **`GET /search?q=<запрос>`** — параметр `q` обязателен.
+  Ответ `200`: `{"query": "...", "results": [{"id": 1, "path": "/path/to/file.pdf"}]}`.
+  Ошибка `400`: `{"error": "empty query"}`, если `q` пустой.
+- **`GET /docs`** — HTML-страница Swagger UI, код `200`.
+- **`GET /openapi.yaml`** — спецификация API, код `200`.
+- **Любой другой путь** — `404`: `{"error": "not found"}`.
+
+Полная спецификация — [`openapi.yaml`](openapi.yaml).
 
