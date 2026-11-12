@@ -1,7 +1,8 @@
 import json
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
+
 import storage
 import structures
 from search import search
@@ -52,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
         """Отправляет OpenAPI-спецификацию"""
         self._set_headers(status_code, "text/yaml; charset=utf-8")
         spec_path = BASE_DIR / "openapi.yaml"
-        with open(spec_path, "r", encoding="utf-8") as f:
+        with open(spec_path, encoding="utf-8") as f:
             self.wfile.write(f.read().encode("utf-8"))
 
     def do_GET(self):

@@ -1,10 +1,11 @@
+import os
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from document_reader import ROOT_PATH, load_documents
 from structures import documents
-from tempfile import TemporaryDirectory
-import os
+
 
 class TestLoadDocuments(unittest.TestCase):
     def test_finds_one_pdf_files(self):

@@ -5,3 +5,7 @@ docs
 __pycache__/
 index_cache.json
 /data
+.scratch/
+.pytest_cache/
+.coverage
+htmlcov/

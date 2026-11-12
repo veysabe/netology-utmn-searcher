@@ -1,4 +1,3 @@
-import pytest
 
 import structures
 from search import Searcher, search

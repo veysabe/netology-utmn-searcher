@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from document_reader import DocumentReader
 from index import Indexer
