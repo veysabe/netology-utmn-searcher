@@ -156,4 +156,4 @@ components:
         unique_words:
           type: integer
           description: Количество уникальных слов в индексе
-          example: 62
+          example: 54
