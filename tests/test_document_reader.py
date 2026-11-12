@@ -1,9 +1,10 @@
 import unittest
 from pathlib import Path
 
-from document_reader import load_documents
+from document_reader import ROOT_PATH, load_documents
 from structures import documents
 from tempfile import TemporaryDirectory
+import os
 
 class TestLoadDocuments(unittest.TestCase):
     def test_finds_one_pdf_files(self):
@@ -14,6 +15,19 @@ class TestLoadDocuments(unittest.TestCase):
             result = load_documents([str(folder)])
             test_dict = {1 : str(pdf_file)}
             self.assertEqual(result, test_dict)
+    def test_resolves_relative_path_from_project_root(self):
+        with TemporaryDirectory(dir=ROOT_PATH) as temp_dir:
+            folder = Path(temp_dir)
+            pdf_file = folder / 'test.pdf'
+            pdf_file.touch()
+            relative_path = folder.name
+            old_dir = os.getcwd()
+            os.chdir(ROOT_PATH.parent)
+            try:
+                result = load_documents([relative_path])
+            finally:
+                os.chdir(old_dir)
+            self.assertEqual(result, {1: str(pdf_file)})
     def test_skips_non_pdf_files(self):
         with TemporaryDirectory() as temp_dir:
             folder = Path(temp_dir)
