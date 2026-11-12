@@ -45,20 +45,21 @@
 config/config.yaml ──► config.config.load_config()
                               │
                               ▼
-              document_reader.load_documents()   поиск *.pdf
+              document_reader.DocumentReader   поиск *.pdf
                               │
                               ▼
-                   index.index() ──► index_storage  кэш по mtime файла
-                              │       (index_cache.json)
+                   index.Indexer ──► storage  кэш по mtime файла
+                              │       (MongoDB или index_cache.json)
                               ▼
               structures.inverted_index + doc_lengths
                               │
                               ▼
-              search.search()  TF-IDF + top-K (heapq.nlargest)
+              search.Searcher  TF-IDF + top-K (heapq.nlargest)
                               │
                               ▼
                   server.py  (http.server, stdlib)
                     ├── GET /search?q=
+                    ├── GET /health
                     ├── GET /docs          Swagger UI
                     └── GET /openapi.yaml  спецификация
 ```
@@ -70,6 +71,8 @@ config/config.yaml ──► config.config.load_config()
 | `http.server` из stdlib              | Нулевые зависимости, достаточно для учебного кейса     |
 | Обратный индекс                      | Поиск за O(запрос), а не перебором всех документов     |
 | Кэш по `mtime`                       | Повторный запуск не переиндексирует неизменённые файлы |
+| Логика в классах                     | Явные зависимости, тесты без глобальных словарей       |
+| MongoDB с откатом на файл            | База для продакшена, файловый кэш — для запуска без неё|
 | Глобальные словари в `structures.py` | Простота; осознанный долг |
 | OpenAPI 3.0.3 + Swagger UI           | Контракт API и самопроверяемая документация            |
 
@@ -144,21 +147,22 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 ### Этап 9. MongoDB (повышенная сложность)
 
-- [ ] Перенос индекса и метаданных из `index_cache.json` в MongoDB
-- [ ] `pymongo`-обёртка над хранилищем
-- [ ] Мок через `mongomock` в тестах
+- [x] Перенос индекса и метаданных из `index_cache.json` в MongoDB
+- [x] `pymongo`-обёртка над хранилищем
+- [x] Мок через `mongomock` в тестах
+- [x] Откат на файловый кэш и `GET /health`
 
 ### Статус этапов
 
-- **Этап 1** (Ядро логики) — частично
-- **Этап 2** (Pytest, coverage) — частично
+- **Этап 1** (Ядро логики) — закрыт
+- **Этап 2** (Pytest, coverage) — закрыт
 - **Этап 3** (Git basics) — закрыт
 - **Этап 4** (GitHub, branches) — частично
-- **Этап 5** (CI, PR, hooks, linter) — не начат
-- **Этап 6** (API-spec) — частично
-- **Этап 7** (API, server tests) — частично
+- **Этап 5** (CI, PR, hooks, linter) — закрыт
+- **Этап 6** (API-spec) — закрыт
+- **Этап 7** (API, server tests) — закрыт
 - **Этап 8** (HTTP-server, Postman) — закрыт
-- **Этап 9** (MongoDB) — не начат
+- **Этап 9** (MongoDB) — закрыт
 
 ### CI: GitHub Actions
 
@@ -182,13 +186,20 @@ jobs:
 
 Порог покрытия — **80 %**. Линтер — **ruff** (совместим с PEP 8).
 
-### MongoDB: план миграции (этап 9)
+### MongoDB: режим хранения (этап 9)
 
-- **Шаг 1.** Создать `storage.py` с `pymongo`-обёрткой
-- **Шаг 2.** Перенести `documents` и `inverted_index` в MongoDB
-- **Шаг 3.** Убрать `index_cache.json` — хранить всё в БД
-- **Шаг 4.** Мок через `mongomock` в тестах
-- **Шаг 5.** Переключить через конфиг (`storage: file|mongodb`)
+- `storage.py` — `MongoIndexStorage` и выбор хранилища по конфигурации
+- документы, постинги и длины лежат в коллекциях `documents`, `postings`,
+  `doc_lengths`
+- при старте индекс читается из базы, если файлы не изменились
+- `storage: mongodb | file` в `config/config.yaml` переключает режим
+- если база недоступна, сервис пишет предупреждение и работает на
+  `index_cache.json`, а `/health` отдаёт `fallback: true` и причину
+
+```bash
+docker compose up -d          # MongoDB 7 на localhost:27017
+docker compose exec mongo mongosh pdf_search
+```
 
 ---
 
@@ -301,19 +312,27 @@ netology-utmn-searcher/
 ├── main.py               точка входа: конфиг → документы → индекс → сервер
 ├── config/
 │   ├── config.py         загрузка и валидация конфигурации
-│   └── config.yaml       search_paths: список директорий с PDF
+│   └── config.yaml       search_paths, режим хранилища, адрес MongoDB
 ├── document_reader.py    поиск PDF-файлов по директориям
 ├── index.py              извлечение текста, построение обратного индекса
-├── index_storage.py      кэш индекса по mtime
+├── index_storage.py      файловый кэш индекса по mtime
+├── storage.py            MongoDB-хранилище, выбор режима и откат
 ├── search.py             TF-IDF, ранжирование, топ-10
-├── server.py             HTTP-сервер, /search, /docs, /openapi.yaml
+├── server.py             HTTP-сервер, /search, /health, /docs, /openapi.yaml
 ├── structures.py         глобальные хранилища documents, inverted_index,
 │                         doc_lengths
+├── docker-compose.yml    MongoDB 7 для локального запуска
 ├── demo_docs/            демонстрационный корпус из 4 PDF
 │   └── build_demo_docs.py  скрипт пересборки корпуса
 ├── openapi.yaml          спецификация API (OpenAPI 3.0.3)
 └── tests/
-    └── test_document_reader.py
+    ├── test_document_reader.py
+    ├── test_classes.py
+    ├── test_config.py
+    ├── test_index.py
+    ├── test_search.py
+    ├── test_server.py
+    └── test_storage.py
 ```
 
 ---
@@ -326,13 +345,24 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+Поднимите MongoDB (необязательно — без неё сервис работает на файловом кэше):
+
+```bash
+docker compose up -d
+```
+
 По умолчанию конфигурация указывает на демо-корпус `demo_docs` с четырьмя PDF,
 так что поиск работает сразу после клонирования:
 
 ```yaml
 search_paths:
   - demo_docs
+storage: mongodb
+mongo_uri: mongodb://localhost:27017
+mongo_db: pdf_search
 ```
+
+Чтобы работать без базы, поставьте `storage: file`.
 
 Можно указать и абсолютный путь — он используется как есть, а относительный
 разрешается от корня проекта:
@@ -359,6 +389,9 @@ python main.py
 ### Проверка
 
 ```bash
+# состояние сервиса и хранилища
+curl "http://127.0.0.1:8008/health"
+
 # интерактивная документация
 open http://127.0.0.1:8008/docs
 

@@ -22,10 +22,6 @@ class FileIndexStorage:
     def save_index(self, documents, inverted_index, doc_lengths):
         """Файловому кэшу достаточно сохранённых частот слов."""
 
-
-def load_cache():
-    return FileIndexStorage().load_cache()
-
-
-def save_cache(data):
-    FileIndexStorage().save_cache(data)
+    def load_index(self, documents):
+        """Готовый индекс собирается из кэша слов при запуске."""
+        return None

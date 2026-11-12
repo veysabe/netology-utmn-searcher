@@ -1,2 +1,5 @@
 search_paths:
   - demo_docs
+storage: mongodb
+mongo_uri: mongodb://localhost:27017
+mongo_db: pdf_search

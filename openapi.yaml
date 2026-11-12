@@ -58,6 +58,30 @@ paths:
                 default:
                   value:
                     error: "empty query"
+  /health:
+    get:
+      summary: Состояние сервиса и хранилища
+      description: >
+        Возвращает режим хранилища (mongodb или file), признак отката
+        на файловый кэш, причину отката и счётчики индекса.
+      tags:
+        - health
+      responses:
+        "200":
+          description: Сервис работает
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                default:
+                  value:
+                    status: ok
+                    storage: mongodb
+                    fallback: false
+                    reason: null
+                    documents: 4
+                    unique_words: 62
 
 components:
   schemas:
@@ -99,3 +123,37 @@ components:
           type: string
           description: Текст ошибки
           example: "not found"
+    HealthResponse:
+      type: object
+      description: Состояние сервиса
+      required:
+        - status
+        - storage
+        - fallback
+        - documents
+        - unique_words
+      properties:
+        status:
+          type: string
+          example: "ok"
+        storage:
+          type: string
+          description: Режим хранилища — mongodb или file
+          example: "mongodb"
+        fallback:
+          type: boolean
+          description: true, если MongoDB недоступна и сервис работает на файловом кэше
+          example: false
+        reason:
+          type: string
+          nullable: true
+          description: Причина отката на файловый кэш
+          example: null
+        documents:
+          type: integer
+          description: Количество проиндексированных документов
+          example: 4
+        unique_words:
+          type: integer
+          description: Количество уникальных слов в индексе
+          example: 62

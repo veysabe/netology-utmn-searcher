@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pypdf
 
-import index_storage
+import storage
 import structures
 
 WORD_RE = re.compile(r"\w+")
@@ -53,8 +53,11 @@ class Indexer:
 
 def index():
     """Строит индекс и кладёт его в глобальные словари."""
-    storage = index_storage.FileIndexStorage()
-    inverted_index, doc_lengths = Indexer(structures.documents, storage).build()
+    saved = storage.current.load_index(structures.documents)
+    if saved is None:
+        inverted_index, doc_lengths = Indexer(structures.documents, storage.current).build()
+    else:
+        inverted_index, doc_lengths = saved
 
     structures.inverted_index.clear()
     structures.inverted_index.update(inverted_index)
