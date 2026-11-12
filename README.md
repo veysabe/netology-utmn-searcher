@@ -1,5 +1,7 @@
 # pdf-search
 
+[![CI](https://github.com/veysabe/netology-utmn-searcher/actions/workflows/test.yml/badge.svg)](https://github.com/veysabe/netology-utmn-searcher/actions/workflows/test.yml)
+
 Поисковая система по текстовому содержимому PDF-документов с REST API.
 
 Сервис сканирует заданные директории, извлекает текст из PDF, строит обратный
@@ -127,9 +129,9 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 ### Этап 5. CI, линтер, git hooks
 
-- [ ] GitHub Actions: `pytest` + `--cov` + линтер
-- [ ] Порог покрытия в CI
-- [ ] `ruff` / `flake8` (PEP 8)
+- [x] GitHub Actions: `pytest` + `--cov` + линтер
+- [x] Порог покрытия в CI
+- [x] `ruff` (PEP 8, E/F/I/UP/B, длина строки 100)
 - [ ] pre-commit hook: линтер перед коммитом
 
 ### Этап 6. API-спецификация
@@ -166,25 +168,20 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 ### CI: GitHub Actions
 
-Конфигурация: `.github/workflows/test.yml`
+Конфигурация: `.github/workflows/test.yml`. Прогон запускается на каждый push
+и pull request, поднимает MongoDB 7 как сервис-контейнер, проверяет линтером
+код и гоняет тесты с порогом покрытия.
 
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt pytest pytest-cov
-      - run: pytest --cov=. --cov-report=term-missing --cov-fail-under=80
-      - run: ruff check .
+Локально те же проверки:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
 ```
 
-Порог покрытия — **80 %**. Линтер — **ruff** (совместим с PEP 8).
+Порог покрытия — **80 %**, настройки в `pyproject.toml`.
+Линтер — **ruff** (E, F, I, UP, B; длина строки 100, Python 3.11).
 
 ### MongoDB: режим хранения (этап 9)
 
