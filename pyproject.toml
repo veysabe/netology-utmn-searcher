@@ -1,0 +1,24 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Корень проекта в sys.path: без этого `pytest` (не `python -m pytest`)
+# не находит модули верхнего уровня вроде storage.py.
+pythonpath = ["."]
+addopts = "--cov --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "main.py",
+    "tests/*",
+    "demo_docs/*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# В сборщиках документов длинные строки — это XML-шаблоны OOXML.

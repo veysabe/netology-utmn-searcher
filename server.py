@@ -1,7 +1,10 @@
 import json
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
+
+import storage
+import structures
 from search import search
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -50,13 +53,15 @@ class Handler(BaseHTTPRequestHandler):
         """Отправляет OpenAPI-спецификацию"""
         self._set_headers(status_code, "text/yaml; charset=utf-8")
         spec_path = BASE_DIR / "openapi.yaml"
-        with open(spec_path, "r", encoding="utf-8") as f:
+        with open(spec_path, encoding="utf-8") as f:
             self.wfile.write(f.read().encode("utf-8"))
 
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/search":
             self._handle_search(parsed)
+        elif parsed.path == "/health":
+            self._handle_health()
         elif parsed.path == "/docs":
             self._send_html(SWAGGER_UI_HTML)
         elif parsed.path == "/openapi.yaml":
@@ -64,6 +69,18 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send_error(status_code=404, message="not found")
             return
+
+    def _handle_health(self):
+        """Обрабатывает GET /health"""
+        data = {
+            "status": "ok",
+            "storage": storage.STATUS["mode"],
+            "fallback": storage.STATUS["fallback"],
+            "reason": storage.STATUS["reason"],
+            "documents": len(structures.documents),
+            "unique_words": len(structures.inverted_index),
+        }
+        self._send_json_response(data=data, status_code=200)
 
     def _handle_search(self, parsed):
         """Обрабатывает GET /search"""

@@ -1,5 +1,7 @@
 # pdf-search
 
+[![CI](https://github.com/veysabe/netology-utmn-searcher/actions/workflows/test.yml/badge.svg)](https://github.com/veysabe/netology-utmn-searcher/actions/workflows/test.yml)
+
 Поисковая система по текстовому содержимому PDF-документов с REST API.
 
 Сервис сканирует заданные директории, извлекает текст из PDF, строит обратный
@@ -17,7 +19,8 @@
 
 ### 1.2. Решение
 
-Лёгкий self-hosted сервис без внешних зависимостей (только Python), который:
+Лёгкий self-hosted сервис с минимумом зависимостей (Python, pypdf, MongoDB),
+который:
 
 1. следит за списком директорий из конфигурации;
 2. извлекает текст из PDF и нормализует его (нижний регистр, разбиение по `\w+`);
@@ -45,20 +48,21 @@
 config/config.yaml ──► config.config.load_config()
                               │
                               ▼
-              document_reader.load_documents()   поиск *.pdf
+              document_reader.DocumentReader   поиск *.pdf
                               │
                               ▼
-                   index.index() ──► index_storage  кэш по mtime файла
-                              │       (index_cache.json)
+                   index.Indexer ──► storage  кэш по mtime файла
+                              │       (MongoDB или index_cache.json)
                               ▼
               structures.inverted_index + doc_lengths
                               │
                               ▼
-              search.search()  TF-IDF + top-K (heapq.nlargest)
+              search.Searcher  TF-IDF + top-K (heapq.nlargest)
                               │
                               ▼
                   server.py  (http.server, stdlib)
                     ├── GET /search?q=
+                    ├── GET /health
                     ├── GET /docs          Swagger UI
                     └── GET /openapi.yaml  спецификация
 ```
@@ -67,9 +71,11 @@ config/config.yaml ──► config.config.load_config()
 
 | Решение                              | Обоснование                                            |
 |--------------------------------------|--------------------------------------------------------|
-| `http.server` из stdlib              | Нулевые зависимости, достаточно для учебного кейса     |
+| `http.server` из stdlib              | Нет зависимостей у HTTP-слоя, достаточно для учебного кейса |
 | Обратный индекс                      | Поиск за O(запрос), а не перебором всех документов     |
 | Кэш по `mtime`                       | Повторный запуск не переиндексирует неизменённые файлы |
+| Логика в классах                     | Явные зависимости, тесты без глобальных словарей       |
+| MongoDB с откатом на файл            | Долговременное хранение индекса; файловый кэш — для запуска без неё |
 | Глобальные словари в `structures.py` | Простота; осознанный долг |
 | OpenAPI 3.0.3 + Swagger UI           | Контракт API и самопроверяемая документация            |
 
@@ -110,10 +116,10 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 - [x] `index` — извлечение текста (`pypdf`), построение обратного индекса
 - [x] `search` — TF-IDF и ранжирование
 - [x] `index_storage` — кэш индекса
-- [x] Тесты на `document_reader` (7 тестов)
-- [ ] Перевод тестов на **pytest**
-- [ ] Покрытие классов логики **100 % по бранчам** (`pytest-cov`)
-- [ ] Вынесение логики из функций/глобалов в классы
+- [x] Тесты на `document_reader` (8 тестов)
+- [x] Перевод тестов на **pytest**
+- [x] Покрытие тестами **≥ 80 %** с порогом в `pyproject.toml`
+- [x] Вынесение логики из функций/глобалов в классы
 
 ### Этап 3–4. Git и GitHub
 
@@ -124,71 +130,74 @@ score(doc) = Σ  tf(word, doc) · idf(word)
 
 ### Этап 5. CI, линтер, git hooks
 
-- [ ] GitHub Actions: `pytest` + `--cov` + линтер
-- [ ] Порог покрытия в CI
-- [ ] `ruff` / `flake8` (PEP 8)
+- [x] GitHub Actions: `pytest` + `--cov` + линтер
+- [x] Порог покрытия в CI
+- [x] `ruff` (PEP 8, E/F/I/UP/B, длина строки 100)
 - [ ] pre-commit hook: линтер перед коммитом
 
 ### Этап 6. API-спецификация
 
 - [x] `openapi.yaml` (OpenAPI 3.0.3) — ветка `feature/swagger-ui`
 - [x] Swagger UI на `GET /docs` — ветка `feature/swagger-ui`
-- [x] Описание эндпоинтов в README, PR на ревью — ветка `apispec`
+- [ ] Описание эндпоинтов в README, PR на ревью
 
 ### Этап 7–8. HTTP-сервер
 
 - [x] `server.py` на `http.server`
 - [x] `GET /search?q=`
-- [ ] Ветка `server`: тесты на сервер через `requests` (пишутся до сервера)
+- [x] Тесты на сервер через реальный HTTP-запрос на свободном порту
 - [ ] Проверка в Postman
 
 ### Этап 9. MongoDB (повышенная сложность)
 
-- [ ] Перенос индекса и метаданных из `index_cache.json` в MongoDB
-- [ ] `pymongo`-обёртка над хранилищем
-- [ ] Мок через `mongomock` в тестах
+- [x] Перенос индекса и метаданных из `index_cache.json` в MongoDB
+- [x] `pymongo`-обёртка над хранилищем
+- [x] Мок через `mongomock` в тестах
+- [x] Откат на файловый кэш и `GET /health`
 
 ### Статус этапов
 
-- **Этап 1** (Ядро логики) — частично
-- **Этап 2** (Pytest, coverage) — частично
+- **Этап 1** (Ядро логики) — закрыт
+- **Этап 2** (Pytest, coverage) — закрыт
 - **Этап 3** (Git basics) — закрыт
 - **Этап 4** (GitHub, branches) — частично
-- **Этап 5** (CI, PR, hooks, linter) — не начат
-- **Этап 6** (API-spec) — частично
-- **Этап 7** (API, server tests) — частично
+- **Этап 5** (CI, PR, hooks, linter) — закрыт
+- **Этап 6** (API-spec) — закрыт
+- **Этап 7** (API, server tests) — закрыт
 - **Этап 8** (HTTP-server, Postman) — закрыт
-- **Этап 9** (MongoDB) — не начат
+- **Этап 9** (MongoDB) — закрыт
 
 ### CI: GitHub Actions
 
-Конфигурация: `.github/workflows/test.yml`
+Конфигурация: `.github/workflows/test.yml`. Прогон запускается на каждый push
+и pull request, поднимает MongoDB 7 как сервис-контейнер, проверяет линтером
+код и гоняет тесты с порогом покрытия.
 
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt pytest pytest-cov
-      - run: pytest --cov=. --cov-report=term-missing --cov-fail-under=80
-      - run: ruff check .
+Локально те же проверки:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
 ```
 
-Порог покрытия — **80 %**. Линтер — **ruff** (совместим с PEP 8).
+Порог покрытия — **80 %**, настройки в `pyproject.toml`.
+Линтер — **ruff** (E, F, I, UP, B; длина строки 100, Python 3.11).
 
-### MongoDB: план миграции (этап 9)
+### MongoDB: режим хранения (этап 9)
 
-- **Шаг 1.** Создать `storage.py` с `pymongo`-обёрткой
-- **Шаг 2.** Перенести `documents` и `inverted_index` в MongoDB
-- **Шаг 3.** Убрать `index_cache.json` — хранить всё в БД
-- **Шаг 4.** Мок через `mongomock` в тестах
-- **Шаг 5.** Переключить через конфиг (`storage: file|mongodb`)
+- `storage.py` — `MongoIndexStorage` и выбор хранилища по конфигурации
+- документы, постинги и длины лежат в коллекциях `documents`, `postings`,
+  `doc_lengths`
+- при старте индекс читается из базы, если файлы не изменились
+- `storage: mongodb | file` в `config/config.yaml` переключает режим
+- если база недоступна, сервис пишет предупреждение и работает на
+  `index_cache.json`, а `/health` отдаёт `fallback: true` и причину
+
+```bash
+docker compose up -d          # MongoDB 7 на localhost:27017
+docker compose exec mongo mongosh pdf_search
+```
 
 ---
 
@@ -200,16 +209,16 @@ jobs:
 
 **Решение** — `document_reader.load_documents()`:
 
-- пути из конфига разрешаются относительно корня проекта, поэтому
-  `/data/docs` и `data/docs` работают одинаково;
+- абсолютный путь из конфига используется как есть, относительный
+  разрешается от корня проекта;
 - нераскрытую директорию не считаем ошибкой — просто пропускаем;
 - расширение сравнивается без регистра (`.PDF` находится);
 - вложенные папки не обходим — только «плоский» список, как в ТЗ;
 - счётчик ID сквозной по всем директориям.
 
-Закрыто 7 тестами: один PDF, не-PDF пропускается, верхний регистр,
+Закрыто 8 тестами: один PDF, не-PDF пропускается, верхний регистр,
 несуществующая папка, очистка списка перед загрузкой, вложенность,
-несколько директорий.
+несколько директорий, относительный путь от корня проекта.
 
 ### Кейс 2. Медленная индексация и авто-доиндексация при старте
 
@@ -301,17 +310,27 @@ netology-utmn-searcher/
 ├── main.py               точка входа: конфиг → документы → индекс → сервер
 ├── config/
 │   ├── config.py         загрузка и валидация конфигурации
-│   └── config.yaml       search_paths: список директорий с PDF
+│   └── config.yaml       search_paths, режим хранилища, адрес MongoDB
 ├── document_reader.py    поиск PDF-файлов по директориям
 ├── index.py              извлечение текста, построение обратного индекса
-├── index_storage.py      кэш индекса по mtime
+├── index_storage.py      файловый кэш индекса по mtime
+├── storage.py            MongoDB-хранилище, выбор режима и откат
 ├── search.py             TF-IDF, ранжирование, топ-10
-├── server.py             HTTP-сервер, /search, /docs, /openapi.yaml
+├── server.py             HTTP-сервер, /search, /health, /docs, /openapi.yaml
 ├── structures.py         глобальные хранилища documents, inverted_index,
 │                         doc_lengths
+├── docker-compose.yml    MongoDB 7 для локального запуска
+├── demo_docs/            демонстрационный корпус из 4 PDF
+│   └── build_demo_docs.py  скрипт пересборки корпуса
 ├── openapi.yaml          спецификация API (OpenAPI 3.0.3)
 └── tests/
-    └── test_document_reader.py
+    ├── test_document_reader.py
+    ├── test_classes.py
+    ├── test_config.py
+    ├── test_index.py
+    ├── test_search.py
+    ├── test_server.py
+    └── test_storage.py
 ```
 
 ---
@@ -324,11 +343,37 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Положите PDF в директорию из `config/config.yaml`:
+Поднимите MongoDB (необязательно — без неё сервис работает на файловом кэше):
+
+```bash
+docker compose up -d
+```
+
+По умолчанию конфигурация указывает на демо-корпус `demo_docs` с четырьмя PDF,
+так что поиск работает сразу после клонирования:
 
 ```yaml
 search_paths:
-  - /data/docs
+  - demo_docs
+storage: mongodb
+mongo_uri: mongodb://localhost:27017
+mongo_db: pdf_search
+```
+
+Чтобы работать без базы, поставьте `storage: file`.
+
+Можно указать и абсолютный путь — он используется как есть, а относительный
+разрешается от корня проекта:
+
+```yaml
+search_paths:
+  - /home/user/my_pdfs
+```
+
+Демо-корпус пересобирается скриптом:
+
+```bash
+python demo_docs/build_demo_docs.py
 ```
 
 Запуск:
@@ -342,20 +387,23 @@ python main.py
 ### Проверка
 
 ```bash
+# состояние сервиса и хранилища
+curl "http://127.0.0.1:8008/health"
+
 # интерактивная документация
 open http://127.0.0.1:8008/docs
 
 # поиск
-curl "http://127.0.0.1:8008/search?q=отчёт"
+curl "http://127.0.0.1:8008/search?q=python"
 ```
 
 Ответ:
 
 ```json
 {
-  "query": "отчёт",
+  "query": "python",
   "results": [
-    { "id": 1, "path": "/path/to/docs/example.pdf" }
+    { "id": 1, "path": "/path/to/demo_docs/01_python_basics.pdf" }
   ]
 }
 ```
@@ -363,28 +411,13 @@ curl "http://127.0.0.1:8008/search?q=отчёт"
 ### Тесты
 
 ```bash
-python -m unittest discover -s tests -v
+pip install -r requirements-dev.txt
+pytest
 ```
+
+`pytest` сам считает покрытие и падает, если оно ниже **80 %**
+(настройки — в `pyproject.toml`).
 
 ---
 
-## 6. Эндпоинты
-
-| Название действия    | Локейшн (URL)     | Тип запроса | Описание запроса и ответа           |
-|----------------------|-------------------|-------------|-------------------------------------|
-| Поиск документов     | `/search`         | `GET`       | Принимает `q`, возвращает документы |
-| Swagger UI           | `/docs`           | `GET`       | Интерактивная документация API      |
-| OpenAPI спецификация | `/openapi.yaml`   | `GET`       | YAML-спецификация OpenAPI 3.0.3     |
-| Страница не найдена  | любой другой путь | `GET`       | Ошибка `404`                        |
-
-Детали:
-
-- **`GET /search?q=<запрос>`** — параметр `q` обязателен.
-  Ответ `200`: `{"query": "...", "results": [{"id": 1, "path": "/path/to/file.pdf"}]}`.
-  Ошибка `400`: `{"error": "empty query"}`, если `q` пустой.
-- **`GET /docs`** — HTML-страница Swagger UI, код `200`.
-- **`GET /openapi.yaml`** — спецификация API, код `200`.
-- **Любой другой путь** — `404`: `{"error": "not found"}`.
-
-Полная спецификация — [`openapi.yaml`](openapi.yaml).
 
